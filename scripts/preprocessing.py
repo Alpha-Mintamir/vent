@@ -21,18 +21,11 @@ def remove_emojis(df, text_column):
 
 
 
-def remove_first_two_sentences(df, text_column):
-    nltk.download('punkt')  # Ensure 'punkt' is downloaded
-    
-    def remove_sentences(text):
-        if not isinstance(text, str):  # Check if the input is not a string
-            return text  # Return the original value (e.g., NaN) unchanged
-        sentences = nltk.sent_tokenize(text)
-        return ' '.join(sentences[2:]) if len(sentences) > 2 else ''  # Remove first two sentences or return empty string
-    
-    # Apply the function to the specified column
-    df[text_column] = df[text_column].apply(remove_sentences)
-    return df
+def process_text(input_text):
+    second_newline_index = input_text.find('\n', input_text.find('\n') + 1)
+    if second_newline_index != -1:
+        return input_text[second_newline_index + 1:]
+    return input_text
 
 
 def remove_non_english_rows(df, text_column):

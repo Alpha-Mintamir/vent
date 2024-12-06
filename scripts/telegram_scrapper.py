@@ -1,108 +1,63 @@
-from telethon import TelegramClient
-import csv
 import os
-from dotenv import load_dotenv
+import csv
 import logging
+from dotenv import load_dotenv
+from telethon import TelegramClient
+
+# Set the absolute path to save the scraped data
+scrapped_data_dir = r'C:\Templates\vent\data'
 
 # Ensure the scrapped_data directory exists
-scrapped_data_dir = '../data/scrapped_data'
 if not os.path.exists(scrapped_data_dir):
     os.makedirs(scrapped_data_dir)
 
-
 # Set up logging configuration
 logging.basicConfig(
-    filename='../data/scrapped_data/scraper.log',
+    filename=os.path.join(scrapped_data_dir, 'scraper.log'),
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
 )
 
-# Load environment variables
+# Load environment variables from .env file
 load_dotenv('.env')
 api_id = os.getenv('TG_API_ID')
 api_hash = os.getenv('TG_API_HASH')
-phone = os.getenv('phone')
+phone = os.getenv('PHONE')  # Unused but can be added if needed
+channel_username = os.getenv('CHANNEL_USERNAME')  # Add channel username in .env
 
-# Function to scrape photos from specific channels
-async def scrape_photos(client, channel_username, media_dir):
-    try:
-        entity = await client.get_entity(channel_username)
-        channel_title = entity.title 
-        logging.info(f"Scraping photos from channel: {channel_title}")
-        
-        async for message in client.iter_messages(entity):
-            if message.media and hasattr(message.media, 'photo'):
-                # Create a unique filename for the photo
-                photo_filename = f"{channel_username}_{message.id}.jpg"
-                media_path = os.path.join(media_dir, photo_filename)
+# Check if API credentials and channel username are available
+if not api_id or not api_hash or not channel_username:
+    logging.error("Missing API ID, API Hash, or Channel Username in environment variables.")
+    raise ValueError("Please set TG_API_ID, TG_API_HASH, and CHANNEL_USERNAME in your .env file.")
 
-                # Download the media to the specified directory if it's a photo
-                await client.download_media(message.media, media_path)
-                logging.info(f"Downloaded media: {photo_filename}")
+# Initialize Telegram client
+client = TelegramClient('session_name', api_id, api_hash)
 
-        logging.info(f"Photo scraping complete for channel: {channel_title}")
+async def scrape_telegram_channel():
+    async with client:
+        try:
+            # Open CSV file to save messages
+            csv_file_path = os.path.join(scrapped_data_dir, 'telegram_messages.csv')
+            with open(csv_file_path, 'w', newline='', encoding='utf-8') as csvfile:
+                fieldnames = ['date', 'message']
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writeheader()
+                
+                # Loop through all messages and write to CSV
+                async for message in client.iter_messages(channel_username):
+                    writer.writerow({
+                        'date': message.date.strftime('%Y-%m-%d %H:%M:%S'),
+                        'message': message.text or '[Media or Non-Text Message]'
+                    })
 
-    except Exception as e:
-        logging.error(f"Error scraping photos from channel {channel_username}: {str(e)}")
+            logging.info("Messages scraped successfully!")
+            print("Messages scraped successfully! File saved at:", csv_file_path)
 
-# Function to scrape messages from channels (no media)
-async def scrape_messages(client, channel_username, scrapped_data_dir):
-    try:
-        entity = await client.get_entity(channel_username)
-        channel_title = entity.title 
-        logging.info(f"Scraping messages from channel: {channel_title}")
-        
-        # Create a CSV file for each channel
-        filename = f"{scrapped_data_dir}/{channel_username}_data.csv"
-        with open(filename, 'w', newline='', encoding='utf-8') as file:
-            writer = csv.writer(file)
-            writer.writerow(['Channel Title', 'Channel Username', 'ID', 'Message', 'Date', 'Views', 'Message Link'])
+        except Exception as e:
+            logging.error(f"Error scraping channel: {str(e)}")
+            print(f"Error scraping channel: {str(e)}")
 
-            async for message in client.iter_messages(entity, limit=4000):
-                message_link = f'https://t.me/{channel_username}/{message.id}' if channel_username else None
-                writer.writerow([channel_title, channel_username, message.id, message.message, message.date, message.views, message_link])
-
-        logging.info(f"Message scraping complete for channel: {channel_title}")
-
-    except Exception as e:
-        logging.error(f"Error scraping messages from channel {channel_username}: {str(e)}")
-
-# Initialize the client
-client = TelegramClient('scraping_session', api_id, api_hash)
-
-async def main():
-    try:
-        await client.start()
-        logging.info("Telegram client started")
-        
-        # Create directories for media files and scrapped data
-        media_dir = '../data/photos'
-
-        os.makedirs(media_dir, exist_ok=True)
-        logging.info("Created required directories")
-
-        # Channels to scrape photos from
-        photo_channels = [
-            '@vent_here'
-        ]
-
-        # Channels to scrape messages from
-        message_channels = [
-            "@vent_here"
-        ]
-
-        # Scrape photos from the specified channels
-        #for channel in photo_channels:
-            #await scrape_photos(client, channel, media_dir)
-            #print(f"Scraped photos from {channel}")
-
-        # Scrape messages from the other channels
-        for channel in message_channels:
-            await scrape_messages(client, channel, scrapped_data_dir)
-            print(f"Scraped messages from {channel}")
-
-    except Exception as e:
-        logging.error(f"Error in the main function: {str(e)}")
-
-with client:
-    client.loop.run_until_complete(main())
+# Run the script
+if __name__ == '__main__':
+    with client:
+        client.loop.run_until_complete(scrape_telegram_channel())
