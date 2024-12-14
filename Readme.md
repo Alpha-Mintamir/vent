@@ -6,6 +6,10 @@ This repository contains scripts for cleaning and preprocessing text data, inclu
 
 - `preprocessing.py`: Functions for text cleaning and preprocessing.
 - `pre-processing.ipynb`: A Jupyter Notebook demonstrating how to use the preprocessing functions on a dataset.
+- `data/`: A directory containing sample data files for testing the preprocessing functions.
+- `emotion_feature.ipynb`: A Jupyter Notebook demonstrating how to extract emotion features from text data.
+- `sentiment_feature.ipynb`: A Jupyter Notebook demonstrating how to extract sentiment features from text data.
+- `vent_analysis.ipynb`: A Jupyter Notebook demonstrating how to perform vent analysis on text data.
 
 ## Features
 
